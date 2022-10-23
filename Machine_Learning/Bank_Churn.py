@@ -19,8 +19,7 @@ with ZipFile('bank-customer-churn-dataset.zip', 'r') as zipObj:
    # Extract all the contents of zip file in current directory
    zipObj.extractall()
 
-################################################################################
-#Setup
+#Import libraries
 import pandas as pd
 import numpy as np
 import seaborn as sn
@@ -32,110 +31,107 @@ from sklearn.feature_selection import VarianceThreshold
 from sklearn.feature_selection import RFE
 from sklearn.linear_model import LogisticRegression, LogisticRegressionCV
 from sklearn.model_selection import train_test_split
-from sklearn.metrics import f1_score, roc_auc_score, accuracy_score, auc, confusion_matrix, ConfusionMatrixDisplay
+from sklearn.metrics import f1_score, roc_auc_score, accuracy_score, auc, confusion_matrix #ConfusionMatrixDisplay
 from sklearn.preprocessing import OneHotEncoder
 from sklearn.preprocessing import LabelEncoder
 import inspect
 from sklearn.metrics import precision_recall_curve
-################################################################################
-#Read Dataset
-df = pd.read_csv('Bank Customer Churn Prediction.csv')
-df.head(5)
-df.describe()
 
+#Set display and other options
 pd.set_option('display.max_rows', 100)
 pd.set_option('display.max_columns', 100)
+plt.rcParams["figure.figsize"] = (12.0,10.0)
+sn.set(rc={'figure.figsize':(12.0,10.0)})
 
-#EDA
-corr_matrix = df.corr()
+#Read Dataset
+df = pd.read_csv('Bank Customer Churn Prediction.csv')
+print("-------------------------- Information on data -----------------------")
+print(df.info())
+print("\n")
+print("-------------------------- Top 5 rows -----------------------")
+print(df.head(5))
+print("\n")
+print("-------------------------- Quick summary -----------------------")
+print(df.describe())
+print("\n")
 
-sn.heatmap(corr_matrix, annot=True)
-plt.savefig("bank_churn_corr_matrix")
-plt.show()
+#Exploratory Analysis
+def eda(df,var,target,histbin,distpct,save):
+    """
+    args
+        df:
+        var: 
+        target: 
+        histbin:
+        distpct:
+        save:
+    """
+    print("-------------------------- Quick summary of -var- --------------------------")
+    overall = df[var].describe()
+    where_target_0 = df.loc[df[target]==0,var].describe()
+    where_target_1 = df.loc[df[target]==1,var].describe()
+    print(pd.DataFrame({"overall":overall,"where_target_0":where_target_0,"where_target_1":where_target_1}))
+    print("\n")
+    
+    print("-------------------------- Distributions of -var- by target --------------------------")
+    plt.hist(df.loc[df[target]==0,var], bins=histbin, alpha=0.5, label="target=0", density=distpct)
+    plt.hist(df.loc[df[target]==1,var], bins=histbin, alpha=0.5, label="target=1", density=distpct)
+    plt.xlabel("-var-", size=14)
+    plt.ylabel("distribution", size=14)
+    plt.title("Distribution of -var- by target")
+    plt.legend(loc='upper right')
+    if save:
+        plt.savefig("Distribution of -var- by target")
+    plt.show()    
+        
+    print("\n")
+    print("-------------------------- Correlation between -var- and target --------------------------")
+    print(df[[var,target]].corr())
+    print("\n")
 
-#Credit Card / Churn
-ctab = pd.crosstab(index=df['credit_card'],columns=df['churn'])
-pd.DataFrame({"m1":ctab.iloc[:,0] / ctab.iloc[:,0].sum(), "m2":ctab.iloc[:,1] / ctab.iloc[:,1].sum()})
-
-#estimated salary / churn
-df.loc[df['churn']==0,'estimated_salary'].mean()
-df.loc[df['churn']==1,'estimated_salary'].mean()
-
-df['estimated_salary'].hist(by=df['churn'])
-plt.show()
-# df.loc[15647311]
-#credit score
-df['credit_score'].describe()
-
-plt.hist(df.loc[df['churn']==0,'credit_score'], bins=50, alpha=0.5, label="churn=0", density=True)
-plt.hist(df.loc[df['churn']==1,'credit_score'], bins=50, alpha=0.5, label="churn=1", density=True)
-plt.xlabel("credit score", size=14)
-plt.ylabel("pct. dist", size=14)
-plt.title("Credit score by Churn category")
-plt.legend(loc='upper right')
-plt.show()
-
-#balance
-
-plt.hist(df.loc[df['churn']==0,'balance'], bins=50, alpha=0.5, label="churn=0", density=True)
-plt.hist(df.loc[df['churn']==1,'balance'], bins=50, alpha=0.5, label="churn=1", density=True)
-plt.xlabel("balance", size=14)
-plt.ylabel("pct. dist", size=14)
-plt.title("balance by Churn category")
-plt.legend(loc='upper right')
-plt.show()
-
+eda(df,'credit_score','churn',50,True,False)
+    
 #churn rate by country
 df.groupby("country")['churn'].mean()
 df.groupby("gender")['churn'].mean()
 df.groupby("tenure")['churn'].mean()
-# plt.savefig("overlapping_histograms_with_matplotlib_Python.png")
 
-df_transf = df.copy()
-df_transf
+#correlation matrix
+corr_mat = df.corr()
+corr_mat.style.background_gradient(cmap='coolwarm')
 
+
+def plotCorr(df):
+    """Function plots a graphical correlation matrix for each pair of columns in the dataframe.
+
+    Input:
+        df: pandas DataFrame
+        size: vertical and horizontal size of the plot
+    """
+    corr = df.corr()
+    sn.heatmap(corr, cmap="Blues",annot=True)
+    
+plotCorr(df)
+
+#Preprocess data
+def encodeCategorical(df,var):
+    df_transf = pd.get_dummies(df, columns=[var], prefix=[var])
+    return df_transf
+
+df_transf = encodeCategorical(df,'country')
+df_transf = encodeCategorical(df_transf,'gender')
+  
 df_transf = df_transf.set_index('customer_id')
 
-######## Prepare for modeling ###############
-
-
 df_transf.info()
 
-# uniqueX = df_transf['gender'].unique()
-# u = len(uniqueX)
-# listX = [None]*u
-# for i in range(0,k):
-#    listX[i] = [uniqueX[i],i]
-# listX
-
-#labelencoder is good for 2 cat
-labelencoder = LabelEncoder()
-df_transf['gender_cat'] = labelencoder.fit_transform(df_transf['gender'])
-df_transf[['gender_cat','gender']] #female = 0
-df_transf = df_transf.drop(columns='gender')
-# df_transf['country_cat'] = labelencoder.fit_transform(df_transf['country'])
-# df_transf.groupby(['country_cat','country'])['churn'].count() #france =0, germany=1, spain=2
-
-# creating instance of one-hot-encoder
-# enc = OneHotEncoder(handle_unknown='ignore')
-# passing bridge-types-cat column (label encoded values of bridge_types)
-# enc_df_transf = pd.DataFrame(enc.fit_transform(df_transf[['country']]).toarray())
-
-# merge with main df_transf bridge_df_transf on key values
-# df_transf = df_transf.join(enc_df_transf)
-# df_transf.info()
-
-# generate binary values using get_dummies
-df_transf = pd.get_dummies(df_transf, columns=["country"], prefix=["country_"])
-# merge with main df bridge_df on key values
-df_transf.info()
-
+#Train Test split
 X_tr,X_ts,y_tr,y_ts = train_test_split(df_transf.drop(columns='churn'),df_transf['churn'],test_size=0.3)
 # inspect.getsource(train_test_split) #view function def
 # train_test_split.__code__.co_varnames #view list of arguments
 # train_test_split.__code__.co_argcount
 
-######## Logistic model ###############
+#Logistic model with Cross Validation
 clf = LogisticRegressionCV(cv=10,random_state=0).fit(X_tr,y_tr)
 # inspect.getmembers(clf)
 #dir(clf)
@@ -144,6 +140,8 @@ clf = LogisticRegressionCV(cv=10,random_state=0).fit(X_tr,y_tr)
 # LogisticRegression.__code__.co_varnamess
 clf.score(X_ts,y_ts)
 
+
+
 y_ts_pred = clf.predict(X_ts)
 y_ts_prob_ = clf.predict_proba(X_ts)
 y_ts_prob = []
@@ -151,11 +149,11 @@ for x in range(len(y_ts_prob_)):
     y_ts_prob.append(y_ts_prob_[x][1])
     
 y_df = pd.DataFrame(data={'y_ts':y_ts,'y_ts_pred':y_ts_pred,'y_ts_prob':y_ts_prob})
-conf_matrix = confusion_matrix(y_ts,y_ts_pred)
-cm_display = ConfusionMatrixDisplay(confusion_matrix = conf_matrix, display_labels = [False, True])
+#conf_matrix = confusion_matrix(y_ts,y_ts_pred)
+#cm_display = ConfusionMatrixDisplay(confusion_matrix = conf_matrix, display_labels = [False, True])
 
-cm_display.plot()
-plt.show()
+#cm_display.plot()
+#plt.show()
 
 
 precision, recall, thresholds = precision_recall_curve(y_ts, y_ts_prob_[:, 
@@ -175,6 +173,25 @@ f1_ = np.nan_to_num(f1_,nan=0)
 
 precision[np.argmax(f1_)]
 recall[np.argmax(f1_)]
-thresholds[np.argmax(f1_)]
+n_thresh = thresholds[np.argmax(f1_)]
 #Scored_ts = pd.DataFrame(clf.predict_proba(X_ts)
 roc_auc_score(y_ts, y_ts_pred)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
