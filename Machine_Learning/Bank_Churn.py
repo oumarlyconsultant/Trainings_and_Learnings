@@ -32,7 +32,7 @@ from sklearn.feature_selection import VarianceThreshold
 from sklearn.feature_selection import RFE
 from sklearn.linear_model import LogisticRegression, LogisticRegressionCV
 from sklearn.model_selection import train_test_split
-from sklearn.metrics import f1_score, roc_auc_score, accuracy_score, auc
+from sklearn.metrics import f1_score, roc_auc_score, accuracy_score, auc, confusion_matrix, ConfusionMatrixDisplay
 from sklearn.preprocessing import OneHotEncoder
 from sklearn.preprocessing import LabelEncoder
 import inspect
@@ -134,13 +134,25 @@ X_tr,X_ts,y_tr,y_ts = train_test_split(df_transf.drop(columns='churn'),df_transf
 ######## Logistic model ###############
 clf = LogisticRegressionCV(cv=5,random_state=0).fit(X_tr,y_tr)
 # inspect.getmembers(clf)
-dir(clf)
+#dir(clf)
 # help(LogisticRegression)
 # inspect.getsource(LogisticRegression)
-# LogisticRegression.__code__.co_varnames
-Scored_ts = pd.DataFrame(clf.predict_proba(X_ts))
-print("Accuracy of model: {}".format(clf.score(X_ts,y_ts)))
+# LogisticRegression.__code__.co_varnamess
+clf.score(X_ts,y_ts)
+y_ts_pred = clf.predict(X_ts)
+y_ts_prob_ = clf.predict_proba(X_ts)
+y_ts_prob = []
+for x in range(0,len(y_ts_prob_)):
+    y_ts_prob.append(y_ts_prob_[x][1])
+    
+y_df = pd.DataFrame(data={'y_ts':y_ts,'y_ts_pred':y_ts_pred,'y_ts_prob':y_ts_prob})
+conf_matrix = confusion_matrix(y_ts,y_ts_pred)
+cm_display = metrics.ConfusionMatrixDisplay(confusion_matrix = confusion_matrix, display_labels = [False, True])
 
+cm_display.plot()
+plt.show()
+
+#Scored_ts = pd.DataFrame(clf.predict_proba(X_ts)
 fpr, tpr, threshold = metrics.roc_curve(y_ts,)
 
 y_ = y_ts.drop(columns='customer_id').to_numpy()
