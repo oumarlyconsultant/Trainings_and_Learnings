@@ -36,11 +36,15 @@ from sklearn.metrics import f1_score, roc_auc_score, accuracy_score, auc, confus
 from sklearn.preprocessing import OneHotEncoder
 from sklearn.preprocessing import LabelEncoder
 import inspect
+from sklearn.metrics import precision_recall_curve
 ################################################################################
 #Read Dataset
 df = pd.read_csv('Bank Customer Churn Prediction.csv')
 df.head(5)
 df.describe()
+
+pd.set_option('display.max_rows', 100)
+pd.set_option('display.max_columns', 100)
 
 #EDA
 corr_matrix = df.corr()
@@ -132,28 +136,45 @@ X_tr,X_ts,y_tr,y_ts = train_test_split(df_transf.drop(columns='churn'),df_transf
 # train_test_split.__code__.co_argcount
 
 ######## Logistic model ###############
-clf = LogisticRegressionCV(cv=5,random_state=0).fit(X_tr,y_tr)
+clf = LogisticRegressionCV(cv=10,random_state=0).fit(X_tr,y_tr)
 # inspect.getmembers(clf)
 #dir(clf)
 # help(LogisticRegression)
 # inspect.getsource(LogisticRegression)
 # LogisticRegression.__code__.co_varnamess
 clf.score(X_ts,y_ts)
+
 y_ts_pred = clf.predict(X_ts)
 y_ts_prob_ = clf.predict_proba(X_ts)
 y_ts_prob = []
-for x in range(0,len(y_ts_prob_)):
+for x in range(len(y_ts_prob_)):
     y_ts_prob.append(y_ts_prob_[x][1])
     
 y_df = pd.DataFrame(data={'y_ts':y_ts,'y_ts_pred':y_ts_pred,'y_ts_prob':y_ts_prob})
 conf_matrix = confusion_matrix(y_ts,y_ts_pred)
-cm_display = metrics.ConfusionMatrixDisplay(confusion_matrix = confusion_matrix, display_labels = [False, True])
+cm_display = ConfusionMatrixDisplay(confusion_matrix = conf_matrix, display_labels = [False, True])
 
 cm_display.plot()
 plt.show()
 
-#Scored_ts = pd.DataFrame(clf.predict_proba(X_ts)
-fpr, tpr, threshold = metrics.roc_curve(y_ts,)
 
-y_ = y_ts.drop(columns='customer_id').to_numpy()
-roc_auc_score(y_,clf.predict_proba(X_ts))
+precision, recall, thresholds = precision_recall_curve(y_ts, y_ts_prob_[:, 
+1]) 
+   #retrieve probability of being 1(in second column of probs_y)
+pr_auc = auc(recall, precision)
+f1_ = 2*precision*recall/(precision+recall)
+plt.title("Precision-Recall vs Threshold Chart")
+plt.plot(thresholds, precision[: -1], "b--", label="Precision")
+plt.plot(thresholds, recall[: -1], "r--", label="Recall")
+plt.plot(thresholds, f1_[: -1], "g--", label="F1")
+plt.ylabel("Precision, Recall, f1")
+plt.xlabel("Threshold")
+plt.legend(loc="lower left")
+plt.ylim([0,1])
+f1_ = np.nan_to_num(f1_,nan=0)
+
+precision[np.argmax(f1_)]
+recall[np.argmax(f1_)]
+thresholds[np.argmax(f1_)]
+#Scored_ts = pd.DataFrame(clf.predict_proba(X_ts)
+roc_auc_score(y_ts, y_ts_pred)
