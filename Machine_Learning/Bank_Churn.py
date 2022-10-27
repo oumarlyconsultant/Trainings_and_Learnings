@@ -90,15 +90,20 @@ def eda(df,var,target,histbin,distpct,save):
     print("\n")
 
 eda(df,'credit_score','churn',50,True,False)
-    
+eda(df,'age','churn',50,True,False) 
+eda(df,'balance','churn',50,True,False)  
+
+#def targetRate(df,var,target,distpct,save)
+var_bin = df['credit_score']
+     
 #churn rate by country
-df.groupby("country")['churn'].mean()
-df.groupby("gender")['churn'].mean()
-df.groupby("tenure")['churn'].mean()
+# df.groupby("country")['churn'].mean()
+# df.groupby("gender")['churn'].mean()
+# df.groupby("tenure")['churn'].mean()
 
 #correlation matrix
-corr_mat = df.corr()
-corr_mat.style.background_gradient(cmap='coolwarm')
+# corr_mat = df.corr()
+# corr_mat.style.background_gradient(cmap='coolwarm')
 
 
 def plotCorr(df):
