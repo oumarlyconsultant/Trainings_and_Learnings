@@ -36,6 +36,7 @@ from sklearn.preprocessing import OneHotEncoder
 from sklearn.preprocessing import LabelEncoder
 import inspect
 from sklearn.metrics import precision_recall_curve
+from sklearn.tree import DecisionTreeClassifier
 
 #Set display and other options
 pd.set_option('display.max_rows', 100)
@@ -93,9 +94,25 @@ eda(df,'credit_score','churn',50,True,False)
 eda(df,'age','churn',50,True,False) 
 eda(df,'balance','churn',50,True,False)  
 
-#def targetRate(df,var,target,distpct,save)
-var_bin = df['credit_score']
-     
+def targetRate(df,var,target,save):
+    temp = df.copy()
+    temp['var_bin'] = pd.DataFrame(pd.qcut(temp[var],10,duplicates='drop'))
+    chart_ = pd.DataFrame(temp.groupby('var_bin')[target].mean())
+    chart_ = sn.barplot(x=chart_.index,y=chart_[target])
+    if save:
+        chart_.savefig("Target Rate by -var-")
+
+targetRate(df,'credit_score','churn',False)
+targetRate(df,'balance','churn',False)
+targetRate(df,'age','churn',False)
+#var_bin = pd.DataFrame(var_bin.groupby(by=['credit_score']).size())
+#var_bin['bin'] = var_bin.index
+#var_bin.reset_index()
+#var_bin = var_bin
+#var_bin.groupby(by=['bin'])['bin_index'].count()
+#group = pd.DataFrame({'bin_index':var_bin.index,'count':var_bin.groupby(by=['bin']).size()})
+#var_bin.groupby(by=['bin']).size()
+
 #churn rate by country
 # df.groupby("country")['churn'].mean()
 # df.groupby("gender")['churn'].mean()
@@ -120,7 +137,7 @@ plotCorr(df)
 
 #Preprocess data
 def encodeCategorical(df,var):
-    df_transf = pd.get_dummies(df, columns=[var], prefix=[var])
+    df_transf = pd.get_dummies(df, columns=[var], prefix=[var],drop_first=True)
     return df_transf
 
 df_transf = encodeCategorical(df,'country')
@@ -136,35 +153,40 @@ X_tr,X_ts,y_tr,y_ts = train_test_split(df_transf.drop(columns='churn'),df_transf
 # train_test_split.__code__.co_varnames #view list of arguments
 # train_test_split.__code__.co_argcount
 
-#Logistic model with Cross Validation
+############  Logistic model with Cross Validation
 clf = LogisticRegressionCV(cv=10,random_state=0).fit(X_tr,y_tr)
 # inspect.getmembers(clf)
 #dir(clf)
 # help(LogisticRegression)
 # inspect.getsource(LogisticRegression)
 # LogisticRegression.__code__.co_varnamess
-clf.score(X_ts,y_ts)
+#clf.score(X_ts,y_ts)
+
+predicted = clf.predict(X_ts)
+accuracy_score(y_ts,predicted)
+roc_auc_score(y_ts,predicted)
+f1_score(y_ts,predicted)
+confusion_matrix(y_ts,predicted)
 
 
+predicted_prob = clf.predict_proba(X_ts)
 
-y_ts_pred = clf.predict(X_ts)
-y_ts_prob_ = clf.predict_proba(X_ts)
-y_ts_prob = []
-for x in range(len(y_ts_prob_)):
-    y_ts_prob.append(y_ts_prob_[x][1])
-    
-y_df = pd.DataFrame(data={'y_ts':y_ts,'y_ts_pred':y_ts_pred,'y_ts_prob':y_ts_prob})
+precision, recall, thresholds = precision_recall_curve(y_ts, predicted_prob[:, 1]) 
+
+#y_ts_pred = clf.predict(X_ts)
+#y_ts_prob_ = clf.predict_proba(X_ts)
+#y_ts_prob = []
+#for x in range(len(y_ts_prob_)):
+#    y_ts_prob.append(y_ts_prob_[x][1])
+#    
+#y_df = pd.DataFrame(data={'y_ts':y_ts,'y_ts_pred':y_ts_pred,'y_ts_prob':y_ts_prob})
 #conf_matrix = confusion_matrix(y_ts,y_ts_pred)
 #cm_display = ConfusionMatrixDisplay(confusion_matrix = conf_matrix, display_labels = [False, True])
 
 #cm_display.plot()
 #plt.show()
+#pr_auc = auc(recall, precision)
 
-
-precision, recall, thresholds = precision_recall_curve(y_ts, y_ts_prob_[:, 
-1]) 
-   #retrieve probability of being 1(in second column of probs_y)
-pr_auc = auc(recall, precision)
 f1_ = 2*precision*recall/(precision+recall)
 plt.title("Precision-Recall vs Threshold Chart")
 plt.plot(thresholds, precision[: -1], "b--", label="Precision")
@@ -174,13 +196,27 @@ plt.ylabel("Precision, Recall, f1")
 plt.xlabel("Threshold")
 plt.legend(loc="lower left")
 plt.ylim([0,1])
-f1_ = np.nan_to_num(f1_,nan=0)
+#f1_ = np.nan_to_num(f1_,nan=0)
 
-precision[np.argmax(f1_)]
-recall[np.argmax(f1_)]
-n_thresh = thresholds[np.argmax(f1_)]
-#Scored_ts = pd.DataFrame(clf.predict_proba(X_ts)
-roc_auc_score(y_ts, y_ts_pred)
+#precision[np.argmax(f1_)]
+#recall[np.argmax(f1_)]
+new_thresh = thresholds[np.argmax(f1_)]
+
+
+####### Decision Trees
+dtclf = DecisionTreeClassifier(random_state=0).fit(X_tr,y_tr)
+
+
+
+
+
+
+
+
+
+
+####### Random Forest
+
 
 
 
